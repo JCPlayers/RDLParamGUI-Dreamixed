@@ -29,6 +29,8 @@ namespace RDLParamGUI
         Dictionary<string, uint[]> originalData;
         IniData labelData = new IniData();
         string filepath;
+        string refPath;
+        BinaryReader reader;
 
         public Form1()
         {
@@ -46,11 +48,8 @@ namespace RDLParamGUI
             {
                 labelData = new FileIniDataParser().ReadFile(Directory.GetCurrentDirectory() + "\\labels.ini");
             }
-            valueList.Items.Clear();
-            int index = fileList.SelectedIndex;
             if (paramData != null)
                 UpdateFileList();
-            fileList.SelectedIndex = index;
         }
 
         public uint[] ReadParams(byte[] file)
@@ -230,7 +229,6 @@ namespace RDLParamGUI
 
                     reader.BaseStream.Seek(pos + 0x8, SeekOrigin.Begin);
                 }
-                originalData = paramData;
 
                 reader.Close();
                 reader.Dispose();
@@ -241,9 +239,63 @@ namespace RDLParamGUI
                 this.Enabled = true;
                 saveToolStripMenuItem.Enabled = true;
                 saveAsToolStripMenuItem.Enabled = true;
+                parameterPatchingToolStripMenuItem.Enabled = true;
+                updateLabelsToolStripMenuItem.Enabled = true;
+                RefreshReference();
             }
         }
+        private void RefreshReference()
+        {
+            if (File.Exists(Directory.GetCurrentDirectory() + "\\Reference.bin"))
+            {
+                originalData = new Dictionary<string, uint[]>();
+                refPath = Directory.GetCurrentDirectory() + "\\Reference.bin";
+                reader = new BinaryReader(new FileStream(refPath, FileMode.Open, FileAccess.Read));
+                if (Encoding.UTF8.GetString(reader.ReadBytes(4)) != "XBIN")
+                {
+                    MessageBox.Show("Invalid XBIN header!", this.Text, MessageBoxButtons.OK);
+                    return;
+                }
+                endianness = Endianness.Little;
+                if (reader.ReadBytes(2).SequenceEqual(new byte[] { 0x12, 0x34 }))
+                {
+                    reader = new BigEndianBinaryReader(new FileStream(refPath, FileMode.Open, FileAccess.Read));
+                    endianness = Endianness.Big;
+                }
 
+                reader.BaseStream.Seek(0xC, SeekOrigin.Begin);
+                unkXbin = reader.ReadUInt32();
+
+                uint fileCount = reader.ReadUInt32();
+                for (int i = 0; i < fileCount; i++)
+                {
+                    long pos = reader.BaseStream.Position;
+
+                    reader.BaseStream.Seek(reader.ReadUInt32(), SeekOrigin.Begin);
+                    string name = Encoding.UTF8.GetString(reader.ReadBytes(reader.ReadInt32()));
+
+                    reader.BaseStream.Seek(pos + 0x4, SeekOrigin.Begin);
+                    reader.BaseStream.Seek(reader.ReadUInt32() + 0x8, SeekOrigin.Begin);
+                    int len = reader.ReadInt32();
+                    reader.BaseStream.Seek(-0xC, SeekOrigin.Current);
+                    byte[] file = reader.ReadBytes(len);
+
+                    originalData.Add(name, ReadParams(file));
+
+                    reader.BaseStream.Seek(pos + 0x8, SeekOrigin.Begin);
+                }
+
+                reader.Close();
+                reader.Dispose();
+                UpdateFileList();
+                generatePatchToolStripMenuItem.Enabled = true;
+            }
+            else
+            {
+                originalData = new Dictionary<string, uint[]>();
+                generatePatchToolStripMenuItem.Enabled = false;
+            }
+        }
         private void fileList_SelectedIndexChanged(object sender, EventArgs e)
         {
             valueList.Items.Clear();
@@ -263,6 +315,10 @@ namespace RDLParamGUI
                     {
                         valueList.Items.Add(labelData.Sections[filename][i.ToString()]);
                     }
+                    else
+                    {
+                        valueList.Items.Add("Entry " + i);
+                    }
                 }
                 else
                 {
@@ -274,21 +330,50 @@ namespace RDLParamGUI
         private void valueList_SelectedIndexChanged(object sender, EventArgs e)
         {
             int index = valueList.SelectedIndex;
-            uint[] origData = originalData[fileList.SelectedItem.ToString()];
-            uint[] data = paramData[fileList.SelectedItem.ToString()];
-            byte[] origFloatBytes = BitConverter.GetBytes(origData[index]);
-            byte[] floatBytes = BitConverter.GetBytes(data[index]);
-            hexData.Text = data[index].ToString("X8");
-            intData.Text = data[index].ToString();
-            floatData.Text = BitConverter.ToSingle(floatBytes, 0).ToString();
-            hexDataOrig.Text = origData[index].ToString("X8");
-            intDataOrig.Text = origData[index].ToString();
-            floatDataOrig.Text = BitConverter.ToSingle(origFloatBytes, 0).ToString();
+            if (originalData != null)
+            {
+                try
+                {
+                    uint[] origData = originalData[fileList.SelectedItem.ToString()];
+                    byte[] origFloatBytes = BitConverter.GetBytes(origData[index]);
+                    hexDataOrig.Text = origData[index].ToString("X8");
+                    intDataOrig.Text = origData[index].ToString();
+                    floatDataOrig.Text = BitConverter.ToSingle(origFloatBytes, 0).ToString();
+                }
+                catch 
+                {
+                    hexDataOrig.Text = "";
+                    intDataOrig.Text = "";
+                    floatDataOrig.Text = "";
+                }
+            }
+            try
+            {
+                uint[] data = paramData[fileList.SelectedItem.ToString()];
+                byte[] floatBytes = BitConverter.GetBytes(data[index]);
+                hexData.Text = data[index].ToString("X8");
+                intData.Text = data[index].ToString();
+                floatData.Text = BitConverter.ToSingle(floatBytes, 0).ToString();
+            }
+            catch 
+            {
+                hexData.Text = "";
+                intData.Text = "";
+                floatData.Text = "";
+            }
         }
 
         private void updateLabelsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             UpdateINI();
+            RefreshReference();
+            valueList.Items.Clear();
+            hexData.Text = "";
+            intData.Text = "";
+            floatData.Text = "";
+            hexDataOrig.Text = "";
+            intDataOrig.Text = "";
+            floatDataOrig.Text = "";
         }
 
         private void hexData_TextChanged(object sender, EventArgs e)
@@ -352,6 +437,73 @@ namespace RDLParamGUI
             {
                 filepath = save.FileName;
                 Save();
+            }
+        }
+
+        private void importPatchToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog open = new OpenFileDialog();
+            open.Filter = "Parameter Patch File|*.ini";
+            if (open.ShowDialog() == DialogResult.OK)
+            {
+                string importPath = open.FileName;
+                IniData patchData = new FileIniDataParser().ReadFile(importPath);
+
+                for (int i = 0; i < fileList.Items.Count; i++)
+                {
+                    if (patchData.Sections.ContainsSection(fileList.Items[i].ToString()))
+                    {
+                        string filename = fileList.Items[i].ToString();
+                        uint[] values = paramData[filename];
+                        for (int j = 0; j < values.Length; j++)
+                        {
+                            if (patchData.Sections[filename].ContainsKey(j.ToString()))
+                            {
+                                uint[] data = paramData[filename];
+                                data[j] = uint.Parse(patchData.Sections[filename][j.ToString()], System.Globalization.NumberStyles.HexNumber);
+                                paramData[filename] = data;
+                            }
+                        }
+                    }
+                }
+                UpdateINI();
+                RefreshReference();
+                valueList.Items.Clear();
+                hexData.Text = "";
+                intData.Text = "";
+                floatData.Text = "";
+                hexDataOrig.Text = "";
+                intDataOrig.Text = "";
+                floatDataOrig.Text = "";
+            }
+        }
+        private void generatePatchToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog save = new SaveFileDialog();
+            save.FileName = "New Patch";
+            save.AddExtension = true;
+            save.Filter = "Parameter Patch File|*.ini";
+            if (save.ShowDialog() == DialogResult.OK)
+            {
+                IniData patch = new IniData();
+
+                for (int i = 0; i < fileList.Items.Count; i++)
+                {
+                    string filename = fileList.Items[i].ToString();
+                    uint[] values = paramData[filename];
+                    for (int j = 0; j < values.Length; j++)
+                    {
+                        if (paramData[filename][j] != originalData[filename][j])
+                        {
+                            if (!patch.Sections.ContainsSection(filename))
+                            {
+                                patch.Sections.AddSection(filename);
+                            }
+                            patch.Sections[filename].AddKey(j.ToString(), paramData[filename][j].ToString("X8"));
+                        }
+                    }
+                }
+                new FileIniDataParser().WriteFile(save.FileName, patch);
             }
         }
     }
