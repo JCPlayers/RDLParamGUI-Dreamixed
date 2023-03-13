@@ -30,7 +30,6 @@ namespace RDLParamGUI
         IniData labelData = new IniData();
         string filepath;
         string refPath;
-        BinaryReader reader;
 
         public Form1()
         {
@@ -117,7 +116,7 @@ namespace RDLParamGUI
                 writer.Close();
                 writer.Dispose();
             }
-
+            if (File.Exists(filepath)) File.Delete(filepath);
             if (endianness == Endianness.Big)
                 writer = new BigEndianBinaryWriter(new FileStream(filepath, FileMode.OpenOrCreate, FileAccess.Write));
             else
@@ -250,7 +249,7 @@ namespace RDLParamGUI
             {
                 originalData = new Dictionary<string, uint[]>();
                 refPath = Directory.GetCurrentDirectory() + "\\Reference.bin";
-                reader = new BinaryReader(new FileStream(refPath, FileMode.Open, FileAccess.Read));
+                BinaryReader reader = new BinaryReader(new FileStream(refPath, FileMode.Open, FileAccess.Read));
                 if (Encoding.UTF8.GetString(reader.ReadBytes(4)) != "XBIN")
                 {
                     MessageBox.Show("Invalid XBIN header!", this.Text, MessageBoxButtons.OK);
