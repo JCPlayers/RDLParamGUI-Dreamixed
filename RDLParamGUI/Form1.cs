@@ -262,13 +262,6 @@ namespace RDLParamGUI
         }
         private void RefreshReference()
         {
-            if (File.Exists(Directory.GetCurrentDirectory() + "\\Reference.bin.cmp"))
-            {
-                proc = new Process();
-                Decompress(Directory.GetCurrentDirectory() + "\\Reference.bin.cmp");
-                proc.WaitForExit();
-                proc.Dispose();
-            }
             if (File.Exists(Directory.GetCurrentDirectory() + "\\Reference.bin"))
             {
                 originalData = new Dictionary<string, uint[]>();

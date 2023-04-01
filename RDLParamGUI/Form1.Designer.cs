@@ -127,14 +127,14 @@
             // importPatchToolStripMenuItem
             // 
             this.importPatchToolStripMenuItem.Name = "importPatchToolStripMenuItem";
-            this.importPatchToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.importPatchToolStripMenuItem.Size = new System.Drawing.Size(191, 26);
             this.importPatchToolStripMenuItem.Text = "Import Patch";
             this.importPatchToolStripMenuItem.Click += new System.EventHandler(this.importPatchToolStripMenuItem_Click);
             // 
             // generatePatchToolStripMenuItem
             // 
             this.generatePatchToolStripMenuItem.Name = "generatePatchToolStripMenuItem";
-            this.generatePatchToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.generatePatchToolStripMenuItem.Size = new System.Drawing.Size(191, 26);
             this.generatePatchToolStripMenuItem.Text = "Generate Patch";
             this.generatePatchToolStripMenuItem.Click += new System.EventHandler(this.generatePatchToolStripMenuItem_Click);
             // 
@@ -185,6 +185,7 @@
             // fileList
             // 
             this.fileList.FormattingEnabled = true;
+            this.fileList.HorizontalScrollbar = true;
             this.fileList.ItemHeight = 16;
             this.fileList.Location = new System.Drawing.Point(21, 55);
             this.fileList.Margin = new System.Windows.Forms.Padding(4);
@@ -206,6 +207,7 @@
             // valueList
             // 
             this.valueList.FormattingEnabled = true;
+            this.valueList.HorizontalScrollbar = true;
             this.valueList.ItemHeight = 16;
             this.valueList.Location = new System.Drawing.Point(296, 55);
             this.valueList.Margin = new System.Windows.Forms.Padding(4);
