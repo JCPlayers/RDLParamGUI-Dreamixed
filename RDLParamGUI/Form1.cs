@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -30,6 +31,9 @@ namespace RDLParamGUI
         IniData labelData = new IniData();
         string filepath;
         string refPath;
+        Process proc;
+        BinaryReader reader;
+        
 
         public Form1()
         {
@@ -116,7 +120,7 @@ namespace RDLParamGUI
                 writer.Close();
                 writer.Dispose();
             }
-            if (File.Exists(filepath)) File.Delete(filepath);
+
             if (endianness == Endianness.Big)
                 writer = new BigEndianBinaryWriter(new FileStream(filepath, FileMode.OpenOrCreate, FileAccess.Write));
             else
@@ -173,6 +177,11 @@ namespace RDLParamGUI
             writer.Close();
             writer.Dispose();
 
+            proc = new Process();
+            Recompress(filepath);
+            proc.WaitForExit();
+            proc.Dispose();
+
             this.Cursor = Cursors.Default;
             this.Enabled = true;
         }
@@ -180,15 +189,23 @@ namespace RDLParamGUI
         private void openToolStripMenuItem_Click(object sender, EventArgs e)
         {
             OpenFileDialog open = new OpenFileDialog();
-            open.Filter = "XBIN Binary Archives|*.bin";
+            open.Filter = "XBIN Binary Archives|*.bin;*.cmp";
             if (open.ShowDialog() == DialogResult.OK)
             {
+                filepath = open.FileName;
+                if (open.FileName.EndsWith(".cmp"))
+                {
+                    proc = new Process();
+                    Decompress(filepath);
+                    proc.WaitForExit();
+                    proc.Dispose();
+                    filepath = open.FileName.Substring(0, open.FileName.Length - 4);
+                }
+
                 saveToolStripMenuItem.Enabled = false;
                 saveAsToolStripMenuItem.Enabled = false;
-
                 paramData = new Dictionary<string, uint[]>();
-
-                filepath = open.FileName;
+                
                 BinaryReader reader = new BinaryReader(new FileStream(filepath, FileMode.Open, FileAccess.Read));
 
                 if (Encoding.UTF8.GetString(reader.ReadBytes(4)) != "XBIN")
@@ -245,11 +262,18 @@ namespace RDLParamGUI
         }
         private void RefreshReference()
         {
+            if (File.Exists(Directory.GetCurrentDirectory() + "\\Reference.bin.cmp"))
+            {
+                proc = new Process();
+                Decompress(Directory.GetCurrentDirectory() + "\\Reference.bin.cmp");
+                proc.WaitForExit();
+                proc.Dispose();
+            }
             if (File.Exists(Directory.GetCurrentDirectory() + "\\Reference.bin"))
             {
                 originalData = new Dictionary<string, uint[]>();
                 refPath = Directory.GetCurrentDirectory() + "\\Reference.bin";
-                BinaryReader reader = new BinaryReader(new FileStream(refPath, FileMode.Open, FileAccess.Read));
+                reader = new BinaryReader(new FileStream(refPath, FileMode.Open, FileAccess.Read));
                 if (Encoding.UTF8.GetString(reader.ReadBytes(4)) != "XBIN")
                 {
                     MessageBox.Show("Invalid XBIN header!", this.Text, MessageBoxButtons.OK);
@@ -504,6 +528,58 @@ namespace RDLParamGUI
                 }
                 new FileIniDataParser().WriteFile(save.FileName, patch);
             }
+        }
+        private void decompressToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog open = new OpenFileDialog();
+            open.Filter = "LZ11 Compressed File|*.cmp";
+            if (open.ShowDialog() == DialogResult.OK)
+            {
+                proc = new Process();
+                Decompress(open.FileName);
+                proc.WaitForExit();
+                proc.Dispose();
+            }
+        }
+
+        private void recompressToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog open = new OpenFileDialog();
+            if (open.ShowDialog() == DialogResult.OK)
+            {
+                proc = new Process();
+                Recompress(open.FileName);
+                proc.WaitForExit();
+                proc.Dispose();
+            }
+        }
+        private void Decompress(string path)
+        {
+            // Decompress Archive
+            string newPath = path;
+            if (path.EndsWith(".cmp"))
+            {
+                newPath = path.Substring(0, path.Length - 4);
+                File.Copy(path, newPath);
+                File.Delete(path);
+            }
+            proc.StartInfo.FileName = Directory.GetCurrentDirectory() + @"\lzx.exe";
+            proc.StartInfo.Arguments = " -d " + newPath;
+            proc.Start();
+        }
+        private void Recompress(string path)
+        {
+            // Decompress Archive
+            string newPath = path;
+            if (!path.EndsWith(".cmp"))
+            {
+                newPath = path + ".cmp";
+                File.Copy(path, newPath);
+                File.Delete(path);
+            }
+            proc.StartInfo.FileName = Directory.GetCurrentDirectory() + @"\lzx.exe";
+            proc.StartInfo.Arguments = " -evb " + newPath;
+            proc.Start();
         }
     }
 }
