@@ -86,6 +86,10 @@ namespace RDLParamGUI
         {
             this.Enabled = false;
             this.Cursor = Cursors.WaitCursor;
+            if (File.Exists(filepath + ".cmp"))
+            {
+                File.Delete(filepath + ".cmp");
+            }
 
             List<byte[]> files = new List<byte[]>();
             List<string> fileNames = new List<string>();
@@ -557,6 +561,7 @@ namespace RDLParamGUI
                 File.Delete(path);
             }
             proc.StartInfo.FileName = Directory.GetCurrentDirectory() + @"\lzx.exe";
+            proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
             proc.StartInfo.Arguments = " -d " + newPath;
             proc.Start();
         }
@@ -571,6 +576,7 @@ namespace RDLParamGUI
                 File.Delete(path);
             }
             proc.StartInfo.FileName = Directory.GetCurrentDirectory() + @"\lzx.exe";
+            proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
             proc.StartInfo.Arguments = " -evb " + newPath;
             proc.Start();
         }
