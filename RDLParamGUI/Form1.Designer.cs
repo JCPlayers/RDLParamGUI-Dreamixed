@@ -40,6 +40,7 @@
             this.compressionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.decompressToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.recompressToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.autocompressOnSaveToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.label1 = new System.Windows.Forms.Label();
             this.fileList = new System.Windows.Forms.ListBox();
             this.label2 = new System.Windows.Forms.Label();
@@ -150,7 +151,8 @@
             // 
             this.compressionToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.decompressToolStripMenuItem,
-            this.recompressToolStripMenuItem});
+            this.recompressToolStripMenuItem,
+            this.autocompressOnSaveToolStripMenuItem});
             this.compressionToolStripMenuItem.Name = "compressionToolStripMenuItem";
             this.compressionToolStripMenuItem.Size = new System.Drawing.Size(109, 24);
             this.compressionToolStripMenuItem.Text = "Compression";
@@ -159,7 +161,7 @@
             // 
             this.decompressToolStripMenuItem.Name = "decompressToolStripMenuItem";
             this.decompressToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.D)));
-            this.decompressToolStripMenuItem.Size = new System.Drawing.Size(277, 26);
+            this.decompressToolStripMenuItem.Size = new System.Drawing.Size(314, 26);
             this.decompressToolStripMenuItem.Text = "Decompress File";
             this.decompressToolStripMenuItem.Click += new System.EventHandler(this.decompressToolStripMenuItem_Click);
             // 
@@ -168,9 +170,19 @@
             this.recompressToolStripMenuItem.Name = "recompressToolStripMenuItem";
             this.recompressToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)(((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Shift) 
             | System.Windows.Forms.Keys.D)));
-            this.recompressToolStripMenuItem.Size = new System.Drawing.Size(277, 26);
+            this.recompressToolStripMenuItem.Size = new System.Drawing.Size(314, 26);
             this.recompressToolStripMenuItem.Text = "Compress File";
             this.recompressToolStripMenuItem.Click += new System.EventHandler(this.recompressToolStripMenuItem_Click);
+            // 
+            // autocompressOnSaveToolStripMenuItem
+            // 
+            this.autocompressOnSaveToolStripMenuItem.Checked = true;
+            this.autocompressOnSaveToolStripMenuItem.CheckOnClick = true;
+            this.autocompressOnSaveToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.autocompressOnSaveToolStripMenuItem.Name = "autocompressOnSaveToolStripMenuItem";
+            this.autocompressOnSaveToolStripMenuItem.Size = new System.Drawing.Size(314, 26);
+            this.autocompressOnSaveToolStripMenuItem.Text = "Autocompress .cmp Files On Save";
+            this.autocompressOnSaveToolStripMenuItem.CheckedChanged += new System.EventHandler(this.autocompressOnSaveToolStripMenuItem_CheckedChanged);
             // 
             // label1
             // 
@@ -381,6 +393,7 @@
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "RDLParamEdit";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_Closing);
             this.Load += new System.EventHandler(this.Form1_Load);
             this.menuStrip1.ResumeLayout(false);
             this.menuStrip1.PerformLayout();
@@ -425,6 +438,7 @@
         private System.Windows.Forms.ToolStripMenuItem compressionToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem decompressToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem recompressToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem autocompressOnSaveToolStripMenuItem;
     }
 }
 

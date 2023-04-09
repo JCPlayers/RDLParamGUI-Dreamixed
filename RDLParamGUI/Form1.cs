@@ -33,7 +33,7 @@ namespace RDLParamGUI
         string refPath;
         Process proc;
         BinaryReader reader;
-        
+        bool compressAllowed = false;
 
         public Form1()
         {
@@ -43,6 +43,16 @@ namespace RDLParamGUI
         private void Form1_Load(object sender, EventArgs e)
         {
             UpdateINI();
+            autocompressOnSaveToolStripMenuItem.Checked = RDLParamGUI.Properties.Settings.Default.autocompress;
+        }
+
+        private void Form1_Closing(object sender, EventArgs e)
+        {
+        }
+        private void autocompressOnSaveToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
+        {
+            RDLParamGUI.Properties.Settings.Default.autocompress = autocompressOnSaveToolStripMenuItem.Checked;
+            RDLParamGUI.Properties.Settings.Default.Save();
         }
 
         public void UpdateINI()
@@ -86,11 +96,6 @@ namespace RDLParamGUI
         {
             this.Enabled = false;
             this.Cursor = Cursors.WaitCursor;
-            if (File.Exists(filepath + ".cmp"))
-            {
-                File.Delete(filepath + ".cmp");
-            }
-
             List<byte[]> files = new List<byte[]>();
             List<string> fileNames = new List<string>();
             BinaryWriter writer;
@@ -181,10 +186,13 @@ namespace RDLParamGUI
             writer.Close();
             writer.Dispose();
 
-            proc = new Process();
-            Recompress(filepath);
-            proc.WaitForExit();
-            proc.Dispose();
+            if (compressAllowed && autocompressOnSaveToolStripMenuItem.Checked)
+            {
+                proc = new Process();
+                Recompress(filepath);
+                proc.WaitForExit();
+                proc.Dispose();
+            }
 
             this.Cursor = Cursors.Default;
             this.Enabled = true;
@@ -196,20 +204,22 @@ namespace RDLParamGUI
             open.Filter = "XBIN Binary Archives|*.bin;*.cmp";
             if (open.ShowDialog() == DialogResult.OK)
             {
+
                 filepath = open.FileName;
+                compressAllowed = false;
                 if (open.FileName.EndsWith(".cmp"))
                 {
                     proc = new Process();
                     Decompress(filepath);
                     proc.WaitForExit();
                     proc.Dispose();
-                    filepath = open.FileName.Substring(0, open.FileName.Length - 4);
+                    compressAllowed = true;
                 }
 
                 saveToolStripMenuItem.Enabled = false;
                 saveAsToolStripMenuItem.Enabled = false;
                 paramData = new Dictionary<string, uint[]>();
-                
+
                 BinaryReader reader = new BinaryReader(new FileStream(filepath, FileMode.Open, FileAccess.Read));
 
                 if (Encoding.UTF8.GetString(reader.ReadBytes(4)) != "XBIN")
@@ -262,14 +272,22 @@ namespace RDLParamGUI
                 parameterPatchingToolStripMenuItem.Enabled = true;
                 updateLabelsToolStripMenuItem.Enabled = true;
                 RefreshReference();
+
+                if (compressAllowed)
+                {
+                    proc = new Process();
+                    Recompress(filepath);
+                    proc.WaitForExit();
+                    proc.Dispose();
+                }
             }
         }
         private void RefreshReference()
         {
-            if (File.Exists(Directory.GetCurrentDirectory() + "\\Reference.bin"))
+            if (File.Exists(Directory.GetCurrentDirectory() + @"\Reference.bin"))
             {
                 originalData = new Dictionary<string, uint[]>();
-                refPath = Directory.GetCurrentDirectory() + "\\Reference.bin";
+                refPath = Directory.GetCurrentDirectory() + @"\Reference.bin";
                 reader = new BinaryReader(new FileStream(refPath, FileMode.Open, FileAccess.Read));
                 if (Encoding.UTF8.GetString(reader.ReadBytes(4)) != "XBIN")
                 {
@@ -451,11 +469,15 @@ namespace RDLParamGUI
         {
             SaveFileDialog save = new SaveFileDialog();
             save.AddExtension = true;
-            save.Filter = "XBIN Binary Archives|*.bin";
-            save.DefaultExt = ".bin";
+            save.Filter = "XBIN Binary Archives|*.bin|LZ11 Compressed XBIN Binary Archives|*.cmp";
+            save.DefaultExt = ".cmp";
             if (save.ShowDialog() == DialogResult.OK)
             {
                 filepath = save.FileName;
+                if (filepath.EndsWith(".cmp"))
+                {
+                    compressAllowed = true;
+                } else { compressAllowed = false; }
                 Save();
             }
         }
@@ -536,6 +558,13 @@ namespace RDLParamGUI
                 Decompress(open.FileName);
                 proc.WaitForExit();
                 proc.Dispose();
+                string newPath = open.FileName;
+                if (open.FileName.EndsWith(".cmp"))
+                {
+                    newPath = open.FileName.Substring(0, open.FileName.Length - 4);
+                    File.Copy(open.FileName, newPath);
+                    File.Delete(open.FileName);
+                }
             }
         }
 
@@ -548,37 +577,32 @@ namespace RDLParamGUI
                 Recompress(open.FileName);
                 proc.WaitForExit();
                 proc.Dispose();
+                string newPath = open.FileName;
+                if (!open.FileName.EndsWith(".cmp"))
+                {
+                    newPath = open.FileName + ".cmp";
+                    File.Copy(open.FileName, newPath);
+                    File.Delete(open.FileName);
+                }
             }
         }
         private void Decompress(string path)
         {
             // Decompress Archive
-            string newPath = path;
-            if (path.EndsWith(".cmp"))
-            {
-                newPath = path.Substring(0, path.Length - 4);
-                File.Copy(path, newPath);
-                File.Delete(path);
-            }
             proc.StartInfo.FileName = Directory.GetCurrentDirectory() + @"\lzx.exe";
             proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            proc.StartInfo.Arguments = " -d " + newPath;
+            proc.StartInfo.Arguments = " -d " + path;
             proc.Start();
         }
         private void Recompress(string path)
         {
             // Decompress Archive
-            string newPath = path;
-            if (!path.EndsWith(".cmp"))
-            {
-                newPath = path + ".cmp";
-                File.Copy(path, newPath);
-                File.Delete(path);
-            }
             proc.StartInfo.FileName = Directory.GetCurrentDirectory() + @"\lzx.exe";
             proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            proc.StartInfo.Arguments = " -evb " + newPath;
+            proc.StartInfo.Arguments = " -evb " + path;
             proc.Start();
         }
+
+        
     }
 }
