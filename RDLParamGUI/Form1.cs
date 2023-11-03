@@ -648,7 +648,6 @@ namespace RDLParamGUI
 
             int prevF = fileList.SelectedIndex;
             int prevV = valueList.SelectedIndex;
-
             valueList.Items.Clear();
             UpdateFileList();
             fileList.SelectedIndex = prevF;
@@ -666,6 +665,16 @@ namespace RDLParamGUI
                 if (labelData.Sections[f].ContainsKey(v + "D"))
                     labelData.Sections[f].RemoveKey(v + "D");
             }
+
+            // Write to labels.ini
+            new FileIniDataParser().WriteFile(Directory.GetCurrentDirectory() + "\\labels.ini", labelData);
+
+            int prevF = fileList.SelectedIndex;
+            int prevV = valueList.SelectedIndex;
+            valueList.Items.Clear();
+            UpdateFileList();
+            fileList.SelectedIndex = prevF;
+            valueList.SelectedIndex = prevV;
         }
 
         private void Decompress(string path)
