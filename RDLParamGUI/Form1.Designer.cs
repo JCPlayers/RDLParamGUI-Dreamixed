@@ -64,7 +64,7 @@
             this.setLabel = new System.Windows.Forms.Button();
             this.clrLabel = new System.Windows.Forms.Button();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
-            this.discriptionBox = new System.Windows.Forms.TextBox();
+            this.descriptionBox = new System.Windows.Forms.TextBox();
             this.menuStrip1.SuspendLayout();
             this.curDataBox.SuspendLayout();
             this.refDataBox.SuspendLayout();
@@ -459,13 +459,13 @@
             // 
             // discriptionBox
             // 
-            this.discriptionBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            this.descriptionBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.discriptionBox.Location = new System.Drawing.Point(355, 546);
-            this.discriptionBox.Multiline = true;
-            this.discriptionBox.Name = "discriptionBox";
-            this.discriptionBox.Size = new System.Drawing.Size(511, 73);
-            this.discriptionBox.TabIndex = 15;
+            this.descriptionBox.Location = new System.Drawing.Point(355, 546);
+            this.descriptionBox.Multiline = true;
+            this.descriptionBox.Name = "discriptionBox";
+            this.descriptionBox.Size = new System.Drawing.Size(511, 73);
+            this.descriptionBox.TabIndex = 15;
             // 
             // Form1
             // 
@@ -473,7 +473,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(64)))), ((int)(((byte)(64)))), ((int)(((byte)(64)))));
             this.ClientSize = new System.Drawing.Size(882, 631);
-            this.Controls.Add(this.discriptionBox);
+            this.Controls.Add(this.descriptionBox);
             this.Controls.Add(this.groupBox3);
             this.Controls.Add(this.refDataBox);
             this.Controls.Add(this.curDataBox);
@@ -489,7 +489,6 @@
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "RDLParamEdit - Dreamixed";
-            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_Closing);
             this.Load += new System.EventHandler(this.Form1_Load);
             this.menuStrip1.ResumeLayout(false);
             this.menuStrip1.PerformLayout();
@@ -542,7 +541,7 @@
         private System.Windows.Forms.Button setLabel;
         private System.Windows.Forms.Button clrLabel;
         private System.Windows.Forms.GroupBox groupBox3;
-        private System.Windows.Forms.TextBox discriptionBox;
+        private System.Windows.Forms.TextBox descriptionBox;
     }
 }
 

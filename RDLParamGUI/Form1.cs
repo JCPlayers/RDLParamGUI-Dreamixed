@@ -29,9 +29,7 @@ namespace RDLParamGUI
         Dictionary<string, uint[]> paramData;
         Dictionary<string, uint[]> refData;
         IniData labelData = new IniData();
-        string filepath, refPath, tempPath;
-        Process proc;
-
+        string filepath, refPath;
         public Form1()
         {
             InitializeComponent();
@@ -39,8 +37,6 @@ namespace RDLParamGUI
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            tempPath = Directory.GetCurrentDirectory() + @"\Temp.bin";
-            if (File.Exists(tempPath)) File.Delete(tempPath);
             refPath = Directory.GetCurrentDirectory() + @"\Reference.bin";
             autocompressOnSaveToolStripMenuItem.Checked = RDLParamGUI.Properties.Settings.Default.autocompress;
             UpdateINI();
@@ -48,7 +44,7 @@ namespace RDLParamGUI
 
         private void Form1_Closing(object sender, EventArgs e)
         {
-            if (File.Exists(tempPath)) File.Delete(tempPath);
+
         }
         private void autocompressOnSaveToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
         {
@@ -194,10 +190,11 @@ namespace RDLParamGUI
 
             if (filepath.EndsWith(".cmp") && autocompressOnSaveToolStripMenuItem.Checked)
             {
-                proc = new Process();
-                Compress(filepath);
-                proc.WaitForExit();
-                proc.Dispose();
+                Process recompress = new Process();
+                recompress.StartInfo = lzxCompressFile(filepath);
+                recompress.Start();
+                recompress.WaitForExit();
+                recompress.Dispose();
             }
 
             this.Cursor = Cursors.Default;
@@ -210,15 +207,26 @@ namespace RDLParamGUI
             open.Filter = "XBIN Binary Archives|*.bin;*.cmp";
             if (open.ShowDialog() == DialogResult.OK)
             {
+                valueList.Items.Clear();
+                fileList.Items.Clear();
+                hexData.Text = "";
+                intData.Text = "";
+                floatData.Text = "";
+                hexDataOrig.Text = "";
+                intDataOrig.Text = "";
+                floatDataOrig.Text = "";
+                labelBox.Text = "";
+                descriptionBox.Text = "";
+
                 filepath = open.FileName;
                 if (filepath.EndsWith(".cmp"))
                 {
                     Console.WriteLine("Decompressing...");
-                    proc = new Process();
-                    Decompress(filepath);
-                    proc.WaitForExit();
-                    proc.Close();
-                    proc.Dispose();
+                    Process decompress = new Process();
+                    decompress.StartInfo = lzxDecompressFile(filepath);
+                    decompress.Start();
+                    decompress.WaitForExit();
+                    decompress.Dispose();
                 }
 
                 saveToolStripMenuItem.Enabled = false;
@@ -270,11 +278,12 @@ namespace RDLParamGUI
                 if (filepath.EndsWith(".cmp"))
                 {
                     Console.WriteLine("Recompressing...");
-                    proc = new Process();
-                    Compress(filepath);
-                    proc.WaitForExit();
-                    proc.Close();
-                    proc.Dispose();
+                    Console.WriteLine("Decompressing...");
+                    Process recompress = new Process();
+                    recompress.StartInfo = lzxCompressFile(filepath);
+                    recompress.Start();
+                    recompress.WaitForExit();
+                    recompress.Dispose();
                 }
 
                 UpdateFileList();
@@ -297,11 +306,11 @@ namespace RDLParamGUI
                 if (open.FileName.EndsWith(".cmp"))
                 {
                     Console.WriteLine("Decompressing...");
-                    proc = new Process();
-                    Decompress(refPath);
-                    proc.WaitForExit();
-                    proc.Close();
-                    proc.Dispose();
+                    Process decompress = new Process();
+                    decompress.StartInfo = lzxDecompressFile(refPath);
+                    decompress.Start();
+                    decompress.WaitForExit();
+                    decompress.Dispose();
                 }
                 RefreshReference();
             }
@@ -366,6 +375,8 @@ namespace RDLParamGUI
             hexDataOrig.Text = "";
             intDataOrig.Text = "";
             floatDataOrig.Text = "";
+            labelBox.Text = "";
+            descriptionBox.Text = "";
             string filename = fileList.SelectedItem.ToString();
             uint[] values = paramData[filename];
             for (int i = 0; i < values.Length; i++)
@@ -424,7 +435,7 @@ namespace RDLParamGUI
             }
 
             labelBox.Text = "";
-            discriptionBox.Text = "";
+            descriptionBox.Text = "";
             try
             {
                 string f = fileList.SelectedItem.ToString();
@@ -437,7 +448,7 @@ namespace RDLParamGUI
                     }
                     if (labelData.Sections[f].ContainsKey(v + "D"))
                     {
-                        discriptionBox.Text = labelData.Sections[f][v + "D"];
+                        descriptionBox.Text = labelData.Sections[f][v + "D"].Replace("<br>", Environment.NewLine);
                     }
                 }
             } catch { }
@@ -592,10 +603,11 @@ namespace RDLParamGUI
             open.Filter = "LZ11 Compressed File|*.cmp";
             if (open.ShowDialog() == DialogResult.OK)
             {
-                proc = new Process();
-                Decompress(open.FileName);
-                proc.WaitForExit();
-                proc.Dispose();
+                Process decompress = new Process();
+                decompress.StartInfo = lzxDecompressFile(open.FileName);
+                decompress.Start();
+                decompress.WaitForExit();
+                decompress.Dispose();
                 string newPath = open.FileName;
                 if (open.FileName.EndsWith(".cmp"))
                 {
@@ -611,10 +623,11 @@ namespace RDLParamGUI
             OpenFileDialog open = new OpenFileDialog();
             if (open.ShowDialog() == DialogResult.OK)
             {
-                proc = new Process();
-                Compress(open.FileName);
-                proc.WaitForExit();
-                proc.Dispose();
+                Process recompress = new Process();
+                recompress.StartInfo = lzxCompressFile(open.FileName);
+                recompress.Start();
+                recompress.WaitForExit();
+                recompress.Dispose();
                 string newPath = open.FileName;
                 if (!open.FileName.EndsWith(".cmp"))
                 {
@@ -638,10 +651,15 @@ namespace RDLParamGUI
                 labelData.Sections[f].RemoveKey(v + "D");
 
             // Set new labels
+            
             if (!String.IsNullOrEmpty(labelBox.Text))
                 labelData.Sections[f].AddKey(v, labelBox.Text);
-            if (!String.IsNullOrEmpty(discriptionBox.Text))
-                labelData.Sections[f].AddKey(v + "D", discriptionBox.Text);
+            if (!String.IsNullOrEmpty(descriptionBox.Text))
+            {
+                string neoDescript = descriptionBox.Text.Replace(Environment.NewLine, "<br>");
+                labelData.Sections[f].AddKey(v + "D", neoDescript);
+            }
+                
 
             // Write to labels.ini
             new FileIniDataParser().WriteFile(Directory.GetCurrentDirectory() + "\\labels.ini", labelData);
@@ -676,22 +694,27 @@ namespace RDLParamGUI
             fileList.SelectedIndex = prevF;
             valueList.SelectedIndex = prevV;
         }
-
-        private void Decompress(string path)
+        public ProcessStartInfo lzxDecompressFile(string filepath)
         {
-            // Decompress Archive
-            proc.StartInfo.FileName = Directory.GetCurrentDirectory() + $"//lzx.exe";
-            proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            proc.StartInfo.Arguments = " -d " + path;
-            proc.Start();
+            ProcessStartInfo processStartInfo = new ProcessStartInfo()
+            {
+                FileName = $"\"{AppDomain.CurrentDomain.BaseDirectory}\\lzx.exe\"",
+                Arguments = $" -d \"{filepath}\"",
+                WindowStyle = ProcessWindowStyle.Hidden,
+                CreateNoWindow = true
+            };
+            return processStartInfo;
         }
-        private void Compress(string path)
+        public ProcessStartInfo lzxCompressFile(string filepath)
         {
-            // Recompress Archive
-            proc.StartInfo.FileName = Directory.GetCurrentDirectory() + $"//lzx.exe";
-            proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            proc.StartInfo.Arguments = " -evb " + path;
-            proc.Start();
+            ProcessStartInfo processStartInfo = new ProcessStartInfo()
+            {
+                FileName = $"\"{AppDomain.CurrentDomain.BaseDirectory}\\lzx.exe\"",
+                Arguments = $" -evb \"{filepath}\"",
+                WindowStyle = ProcessWindowStyle.Hidden,
+                CreateNoWindow = true
+            };
+            return processStartInfo;
         }
     }
 }
