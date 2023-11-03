@@ -27,13 +27,10 @@ namespace RDLParamGUI
         Endianness endianness;
         uint unkXbin;
         Dictionary<string, uint[]> paramData;
-        Dictionary<string, uint[]> originalData;
+        Dictionary<string, uint[]> refData;
         IniData labelData = new IniData();
-        string filepath;
-        string refPath;
+        string filepath, refPath, tempPath;
         Process proc;
-        BinaryReader reader;
-        bool compressAllowed = false;
 
         public Form1()
         {
@@ -42,12 +39,16 @@ namespace RDLParamGUI
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            UpdateINI();
+            tempPath = Directory.GetCurrentDirectory() + @"\Temp.bin";
+            if (File.Exists(tempPath)) File.Delete(tempPath);
+            refPath = Directory.GetCurrentDirectory() + @"\Reference.bin";
             autocompressOnSaveToolStripMenuItem.Checked = RDLParamGUI.Properties.Settings.Default.autocompress;
+            UpdateINI();
         }
 
         private void Form1_Closing(object sender, EventArgs e)
         {
+            if (File.Exists(tempPath)) File.Delete(tempPath);
         }
         private void autocompressOnSaveToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
         {
@@ -70,14 +71,19 @@ namespace RDLParamGUI
             List<uint> uintList = new List<uint>();
             BinaryReader reader = new BinaryReader(new MemoryStream(file));
             if (endianness == Endianness.Big)
+            {
+                reader.Close();
+                reader.Dispose();
                 reader = new BigEndianBinaryReader(new MemoryStream(file));
+            } 
 
             reader.BaseStream.Seek(0x10, SeekOrigin.Begin);
             while (reader.BaseStream.Position < reader.BaseStream.Length - 3)
             {
                 uintList.Add(reader.ReadUInt32());
             }
-
+            reader.Close();
+            reader.Dispose();
             return uintList.ToArray();
         }
 
@@ -186,10 +192,10 @@ namespace RDLParamGUI
             writer.Close();
             writer.Dispose();
 
-            if (compressAllowed && autocompressOnSaveToolStripMenuItem.Checked)
+            if (filepath.EndsWith(".cmp") && autocompressOnSaveToolStripMenuItem.Checked)
             {
                 proc = new Process();
-                Recompress(filepath);
+                Compress(filepath);
                 proc.WaitForExit();
                 proc.Dispose();
             }
@@ -204,22 +210,20 @@ namespace RDLParamGUI
             open.Filter = "XBIN Binary Archives|*.bin;*.cmp";
             if (open.ShowDialog() == DialogResult.OK)
             {
-
                 filepath = open.FileName;
-                compressAllowed = false;
-                if (open.FileName.EndsWith(".cmp"))
+                if (filepath.EndsWith(".cmp"))
                 {
+                    Console.WriteLine("Decompressing...");
                     proc = new Process();
                     Decompress(filepath);
                     proc.WaitForExit();
+                    proc.Close();
                     proc.Dispose();
-                    compressAllowed = true;
                 }
 
                 saveToolStripMenuItem.Enabled = false;
                 saveAsToolStripMenuItem.Enabled = false;
                 paramData = new Dictionary<string, uint[]>();
-
                 BinaryReader reader = new BinaryReader(new FileStream(filepath, FileMode.Open, FileAccess.Read));
 
                 if (Encoding.UTF8.GetString(reader.ReadBytes(4)) != "XBIN")
@@ -263,8 +267,17 @@ namespace RDLParamGUI
                 reader.Close();
                 reader.Dispose();
 
-                UpdateFileList();
+                if (filepath.EndsWith(".cmp"))
+                {
+                    Console.WriteLine("Recompressing...");
+                    proc = new Process();
+                    Compress(filepath);
+                    proc.WaitForExit();
+                    proc.Close();
+                    proc.Dispose();
+                }
 
+                UpdateFileList();
                 this.Cursor = Cursors.Default;
                 this.Enabled = true;
                 saveToolStripMenuItem.Enabled = true;
@@ -272,23 +285,34 @@ namespace RDLParamGUI
                 parameterPatchingToolStripMenuItem.Enabled = true;
                 updateLabelsToolStripMenuItem.Enabled = true;
                 RefreshReference();
-
-                if (compressAllowed)
+            }
+        }
+        private void openReferenceToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog open = new OpenFileDialog();
+            open.Filter = "XBIN Binary Archives|*.bin;*.cmp";
+            if (open.ShowDialog() == DialogResult.OK)
+            {
+                File.Copy(open.FileName, refPath, true);
+                if (open.FileName.EndsWith(".cmp"))
                 {
+                    Console.WriteLine("Decompressing...");
                     proc = new Process();
-                    Recompress(filepath);
+                    Decompress(refPath);
                     proc.WaitForExit();
+                    proc.Close();
                     proc.Dispose();
                 }
+                RefreshReference();
             }
         }
         private void RefreshReference()
         {
-            if (File.Exists(Directory.GetCurrentDirectory() + @"\Reference.bin"))
+            if (File.Exists(refPath))
             {
-                originalData = new Dictionary<string, uint[]>();
+                refData = new Dictionary<string, uint[]>();
                 refPath = Directory.GetCurrentDirectory() + @"\Reference.bin";
-                reader = new BinaryReader(new FileStream(refPath, FileMode.Open, FileAccess.Read));
+                BinaryReader reader = new BinaryReader(new FileStream(refPath, FileMode.Open, FileAccess.Read));
                 if (Encoding.UTF8.GetString(reader.ReadBytes(4)) != "XBIN")
                 {
                     MessageBox.Show("Invalid XBIN header!", this.Text, MessageBoxButtons.OK);
@@ -318,19 +342,18 @@ namespace RDLParamGUI
                     reader.BaseStream.Seek(-0xC, SeekOrigin.Current);
                     byte[] file = reader.ReadBytes(len);
 
-                    originalData.Add(name, ReadParams(file));
+                    refData.Add(name, ReadParams(file));
 
                     reader.BaseStream.Seek(pos + 0x8, SeekOrigin.Begin);
                 }
 
                 reader.Close();
                 reader.Dispose();
-                UpdateFileList();
                 generatePatchToolStripMenuItem.Enabled = true;
             }
             else
             {
-                originalData = new Dictionary<string, uint[]>();
+                refData = new Dictionary<string, uint[]>();
                 generatePatchToolStripMenuItem.Enabled = false;
             }
         }
@@ -368,11 +391,11 @@ namespace RDLParamGUI
         private void valueList_SelectedIndexChanged(object sender, EventArgs e)
         {
             int index = valueList.SelectedIndex;
-            if (originalData != null)
+            if (refData != null)
             {
                 try
                 {
-                    uint[] origData = originalData[fileList.SelectedItem.ToString()];
+                    uint[] origData = refData[fileList.SelectedItem.ToString()];
                     byte[] origFloatBytes = BitConverter.GetBytes(origData[index]);
                     hexDataOrig.Text = origData[index].ToString("X8");
                     intDataOrig.Text = origData[index].ToString();
@@ -399,6 +422,25 @@ namespace RDLParamGUI
                 intData.Text = "";
                 floatData.Text = "";
             }
+
+            labelBox.Text = "";
+            discriptionBox.Text = "";
+            try
+            {
+                string f = fileList.SelectedItem.ToString();
+                string v = valueList.SelectedIndex.ToString();
+                if (labelData.Sections.ContainsSection(f))
+                {
+                    if (labelData.Sections[f].ContainsKey(v))
+                    {
+                        labelBox.Text = labelData.Sections[f][v];
+                    }
+                    if (labelData.Sections[f].ContainsKey(v + "D"))
+                    {
+                        discriptionBox.Text = labelData.Sections[f][v + "D"];
+                    }
+                }
+            } catch { }
         }
 
         private void updateLabelsToolStripMenuItem_Click(object sender, EventArgs e)
@@ -469,15 +511,11 @@ namespace RDLParamGUI
         {
             SaveFileDialog save = new SaveFileDialog();
             save.AddExtension = true;
-            save.Filter = "XBIN Binary Archives|*.bin|LZ11 Compressed XBIN Binary Archives|*.cmp";
+            save.Filter = "LZ11 Compressed XBIN Binary Archives|*.cmp|XBIN Binary Archives|*.bin";
             save.DefaultExt = ".cmp";
             if (save.ShowDialog() == DialogResult.OK)
             {
                 filepath = save.FileName;
-                if (filepath.EndsWith(".cmp"))
-                {
-                    compressAllowed = true;
-                } else { compressAllowed = false; }
                 Save();
             }
         }
@@ -535,7 +573,7 @@ namespace RDLParamGUI
                     uint[] values = paramData[filename];
                     for (int j = 0; j < values.Length; j++)
                     {
-                        if (paramData[filename][j] != originalData[filename][j])
+                        if (paramData[filename][j] != refData[filename][j])
                         {
                             if (!patch.Sections.ContainsSection(filename))
                             {
@@ -562,7 +600,7 @@ namespace RDLParamGUI
                 if (open.FileName.EndsWith(".cmp"))
                 {
                     newPath = open.FileName.Substring(0, open.FileName.Length - 4);
-                    File.Copy(open.FileName, newPath);
+                    File.Copy(open.FileName, newPath, true);
                     File.Delete(open.FileName);
                 }
             }
@@ -574,35 +612,77 @@ namespace RDLParamGUI
             if (open.ShowDialog() == DialogResult.OK)
             {
                 proc = new Process();
-                Recompress(open.FileName);
+                Compress(open.FileName);
                 proc.WaitForExit();
                 proc.Dispose();
                 string newPath = open.FileName;
                 if (!open.FileName.EndsWith(".cmp"))
                 {
                     newPath = open.FileName + ".cmp";
-                    File.Copy(open.FileName, newPath);
+                    File.Copy(open.FileName, newPath, true);
                     File.Delete(open.FileName);
                 }
             }
         }
+
+        private void setLabel_Click(object sender, EventArgs e)
+        {
+            // Get Selected Param Group and Entry, remove the existing labels if they exist
+            string f = fileList.SelectedItem.ToString();
+            string v = valueList.SelectedIndex.ToString();
+            if (!labelData.Sections.ContainsSection(f))
+                labelData.Sections.AddSection(f);
+            if (labelData.Sections[f].ContainsKey(v))
+                labelData.Sections[f].RemoveKey(v);
+            if (labelData.Sections[f].ContainsKey(v + "D"))
+                labelData.Sections[f].RemoveKey(v + "D");
+
+            // Set new labels
+            if (!String.IsNullOrEmpty(labelBox.Text))
+                labelData.Sections[f].AddKey(v, labelBox.Text);
+            if (!String.IsNullOrEmpty(discriptionBox.Text))
+                labelData.Sections[f].AddKey(v + "D", discriptionBox.Text);
+
+            // Write to labels.ini
+            new FileIniDataParser().WriteFile(Directory.GetCurrentDirectory() + "\\labels.ini", labelData);
+
+            int prevF = fileList.SelectedIndex;
+            int prevV = valueList.SelectedIndex;
+
+            valueList.Items.Clear();
+            UpdateFileList();
+            fileList.SelectedIndex = prevF;
+            valueList.SelectedIndex = prevV;
+        }
+
+        private void clrLabel_Click(object sender, EventArgs e)
+        {
+            string f = fileList.SelectedItem.ToString();
+            string v = valueList.SelectedIndex.ToString();
+            if (labelData.Sections.ContainsSection(f))
+            {
+                if (labelData.Sections[f].ContainsKey(v))
+                    labelData.Sections[f].RemoveKey(v);
+                if (labelData.Sections[f].ContainsKey(v + "D"))
+                    labelData.Sections[f].RemoveKey(v + "D");
+            }
+        }
+
         private void Decompress(string path)
         {
             // Decompress Archive
-            proc.StartInfo.FileName = Directory.GetCurrentDirectory() + @"\lzx.exe";
+            proc.StartInfo.FileName = Directory.GetCurrentDirectory() + $"//lzx.exe";
             proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
             proc.StartInfo.Arguments = " -d " + path;
             proc.Start();
         }
-        private void Recompress(string path)
+        private void Compress(string path)
         {
-            // Decompress Archive
-            proc.StartInfo.FileName = Directory.GetCurrentDirectory() + @"\lzx.exe";
+            // Recompress Archive
+            proc.StartInfo.FileName = Directory.GetCurrentDirectory() + $"//lzx.exe";
             proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
             proc.StartInfo.Arguments = " -evb " + path;
             proc.Start();
         }
-
-        
     }
 }
